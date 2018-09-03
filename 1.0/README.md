@@ -251,7 +251,7 @@ public void transaction() {
 
 ## 11. 调用存储过程
 
-目前 1.0 的版本没有调用存储过程的方法，以后的版本会提供
+目前 1.0 的版本没有调用存储过程的方法，以后的版本应该会提供
 
 ## 源码分析
 
@@ -343,6 +343,48 @@ public int update(String sql, Object[] params) throws SQLException {
 1. 预编译 sql，获取 `PreparedStatement` 对象
 2. 把参数和 `PreparedStatement` 对象绑定
 3. 调用 jdbc 的 `PreparedStatement.executeUpdate()` 方法执行 sql 语句
+
+这三个步骤和我们平时写 JDBC 语句对步骤差不多，差别在于“把参数和 `PreparedStatement` 对象绑定”的实现
+
+```java
+/**
+ * Fill the <code>PreparedStatement</code> replacement parameters with 
+ * the given objects.
+ * @param stmt
+ * @param params Query replacement parameters; <code>null</code> is a valid
+ * value to pass in.
+ * @throws SQLException
+ */
+protected void fillStatement(PreparedStatement stmt, Object[] params)
+    throws SQLException {
+
+    if (params == null) {
+        return;
+    }
+
+    for (int i = 0; i < params.length; i++) {
+        if (params[i] != null) {
+            stmt.setObject(i + 1, params[i]);
+        } else {
+            stmt.setNull(i + 1, Types.OTHER);
+        }
+    }
+}
+```
+
+调用的是 `PreparedStatement.setObject` 和 `PreparedStatement.setNull` 方法，和我们平时的写法不同，我们是这么写
+
+```java
+String sql = "insert into user(username,password) values(?,?)";
+
+ps = connection.prepareStatement(sql);
+ps.setString(1, "王五");
+ps.setString(2, "我是密码");
+
+int rows = ps.executeUpdate();
+```
+
+如果用 `PreparedStatement.setObject` 和 `PreparedStatement.setNull` 方法对话，就不用根据参数的类型去调用对应的方法了，比较简单。
 
 接着来看看比较复杂的 `query()` 方法
 
@@ -519,11 +561,17 @@ public Object toBean(ResultSet rs, Class type) throws SQLException {
 
 首先说一下这个方法的原理：利用反射，将查询结果映射到 Java Bean 中。然后接着说实现细节
 
-通过 Java Bean 内省，获取属性描述符（PropertyDescriptor）
+通过 Java Bean 内省，获取 属性描述符（PropertyDescriptor）
 
 ```java
 PropertyDescriptor[] props = this.propertyDescriptors(type);
 ```
+
+对于 `User` 类来说，就是
+
+* id
+* name
+* create_time
 
 获取查询结果的元数据
 
@@ -584,7 +632,7 @@ private Object createBean(ResultSet rs, Class type, PropertyDescriptor[] props,
 }
 ```
 
-实现细节其实就是调用属性的 getter 方法设置值，其他没有了
+实现细节其实就是调用属性的 getter 方法设置值，其他没有了。所以 `User` 类一定要有 setter 方法，否则没办法转换 Java Bean
 
 ## 总结
 
