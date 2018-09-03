@@ -640,3 +640,9 @@ private Object createBean(ResultSet rs, Class type, PropertyDescriptor[] props,
 
 - Connection 的管理
 - ResultSet 查询结果的映射
+
+缺点：
+
+* 无法调用存储过程
+* 不支持 SQL 中字段的别名，比如 `SELECT userid AS id FROM osc_users`
+* 不支持泛型
